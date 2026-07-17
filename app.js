@@ -135,12 +135,13 @@
     };
   }
 
-  function rowsToRecords(rows, headerInfo) {
+  function rowsToRecords(rows, headerInfo, options = {}) {
+    const allowSplitDesignatorRepair = options.allowSplitDesignatorRepair !== false;
     const records = [];
     for (let i = headerInfo.index + 1; i < rows.length; i += 1) {
       const raw = rows[i].map(cleanText);
       if (!raw.some(Boolean)) continue;
-      const repaired = repairSplitDesignatorRow(raw, headerInfo);
+      const repaired = allowSplitDesignatorRepair ? repairSplitDesignatorRow(raw, headerInfo) : { values: raw, splitDesignator: false };
       const fields = {};
       Object.entries(headerInfo.map).forEach(([key, columnIndex]) => {
         fields[key] = cleanText(repaired.values[columnIndex]);
@@ -373,7 +374,7 @@
     return (text.match(/\ufffd/g) || []).length;
   }
 
-  function validateBom(rows, template) {
+  function validateBom(rows, template, options = {}) {
     const headerInfo = detectHeaderRow(rows);
     const issues = [];
     if (!headerInfo) {
@@ -388,7 +389,7 @@
       };
     }
 
-    const records = rowsToRecords(rows, headerInfo);
+    const records = rowsToRecords(rows, headerInfo, options);
     template.required.forEach((field) => {
       if (headerInfo.map[field] == null) {
         const severity = SOFT_TEMPLATE_FIELDS.has(field) ? "warning" : "error";
@@ -705,10 +706,10 @@
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const rows = await parseXlsxArrayBuffer(await response.arrayBuffer());
       state.template = analyzeTemplate(rows);
-      renderTemplateStatus(true, "宸茶鍙?Bom_template.xlsx");
+      renderTemplateStatus(true, "Loaded Bom_template.xlsx");
     } catch (error) {
       state.template = FALLBACK_TEMPLATE;
-      renderTemplateStatus(false, "鏈兘璇诲彇妯℃澘锛屽凡浣跨敤鍐呯疆瑙勫垯");
+      renderTemplateStatus(false, "Template could not be loaded; built-in rules are used");
       console.warn(error);
     }
     renderRules();
@@ -720,7 +721,10 @@
     renderCurrentFile(file.name);
     try {
       const rows = await parseFile(file);
-      const result = validateBom(rows, state.template);
+      const ext = file.name.split(".").pop().toLowerCase();
+      const result = validateBom(rows, state.template, {
+        allowSplitDesignatorRepair: ext !== "xlsx",
+      });
       state.lastResult = result;
       renderResult(file.name, result);
     } catch (error) {
