@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BOM 资料检查</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace">
+        <aside class="sidebar">
+          <div class="brand">
+            <div class="mark">BOM</div>
+            <div>
+              <h1>资料检查</h1>
+              <p>模板合规与内容核对</p>
+            </div>
+          </div>
+
+          <div class="drop-zone" id="dropZone">
+            <input id="fileInput" type="file" accept=".csv,.txt,.xlsx" />
+            <div class="drop-copy">
+              <strong>选择或拖入 BOM</strong>
+              <span>支持 CSV、TSV、XLSX</span>
+            </div>
+            <div class="current-file" id="currentFile" hidden>
+              <span class="file-icon">XLS</span>
+              <span id="currentFileName"></span>
+            </div>
+            <button id="pickButton" type="button">选择文件</button>
+          </div>
+
+          <div class="template-status" id="templateStatus">
+            <span class="status-dot pending"></span>
+            <span>正在读取模板...</span>
+          </div>
+
+          <div class="rules-list" id="rulesList"></div>
+        </aside>
+
+        <div class="resize-handle outer" id="outerResize" title="左右拖动调整区域宽度"></div>
+
+        <section class="content">
+          <header class="toolbar">
+            <div>
+              <h2 id="fileTitle">等待上传 BOM</h2>
+              <p id="fileSubtitle">检查必填列、必填值、位号数量、重复位号和 MPN/描述一致性。</p>
+            </div>
+            <div class="toolbar-actions">
+              <button class="secondary" id="sampleButton" type="button">检查模板示例</button>
+              <button class="secondary" id="exportReportButton" type="button" disabled>导出问题报告</button>
+            </div>
+          </header>
+
+          <section class="metrics" id="metrics">
+            <div class="metric">
+              <span>错误</span>
+              <strong id="errorCount">0</strong>
+            </div>
+            <div class="metric">
+              <span>警告</span>
+              <strong id="warningCount">0</strong>
+            </div>
+            <div class="metric">
+              <span>BOM 行</span>
+              <strong id="rowCount">0</strong>
+            </div>
+            <div class="metric">
+              <span>位号数</span>
+              <strong id="refCount">0</strong>
+            </div>
+          </section>
+
+          <section class="result-layout">
+            <div class="result-panel">
+              <div class="panel-head">
+                <h3>问题列表</h3>
+                <select id="severityFilter" aria-label="按严重程度筛选">
+                  <option value="all">全部</option>
+                  <option value="error">只看错误</option>
+                  <option value="warning">只看警告</option>
+                  <option value="info">只看提示</option>
+                </select>
+              </div>
+              <div class="issues" id="issues">
+                <div class="empty-state">
+                  <strong>上传 BOM 后开始检查</strong>
+                  <span>结果会按行号列出，方便回到原表修正。</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="resize-handle inner" id="innerResize" title="左右拖动调整区域宽度"></div>
+
+            <div class="result-panel">
+              <div class="panel-head">
+                <h3>解析预览</h3>
+                <span id="headerStatus">尚未解析</span>
+              </div>
+              <div class="table-wrap">
+                <table id="previewTable">
+                  <tbody>
+                    <tr>
+                      <td class="placeholder">暂无数据</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
