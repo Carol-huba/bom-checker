@@ -76,10 +76,11 @@
     if (!key) return null;
     if (
       key.includes("referencedesignator") ||
+      key.includes("designator") ||
       key === "designator" ||
       key === "refdes" ||
       key === "ref" ||
-      key.includes("浣嶅彿")
+      key.includes("\u4f4d\u53f7")
     ) {
       return "ref";
     }
@@ -491,6 +492,18 @@
         )
       );
     }
+    const duplicateRefs = findDuplicates(refs);
+    if (duplicateRefs.length) {
+      issues.push(
+        issue(
+          "warning",
+          "Duplicate designators within the same row",
+          `${duplicateRefs.map((item) => `${item.ref} appears ${item.count} times`).join("; ")}. Duplicates are included in the count used for Quantity comparison.`,
+          record.rowNumber,
+          "Reference Designator"
+        )
+      );
+    }
 
     const families = Array.from(new Set(refs.map(familyFromDesignator).filter(Boolean)));
     const descriptionText = record.fields.description || record.fields.value || "";
@@ -562,13 +575,24 @@
   }
 
   function parseDesignators(value) {
-    return cleanText(value)
+    const tokens = cleanText(value)
       .replace(/[\uFF0C\u3001;\uFF1B]/g, ",")
       .replace(/\r?\n/g, ",")
       .split(",")
       .flatMap(expandDesignatorToken)
       .map((part) => part.replace(/\s+/g, "").toUpperCase())
-      .filter((part) => /^[A-Z]+[-A-Z]*\d+[A-Z0-9-]*$/.test(part));
+      .filter(Boolean);
+    const standardRefs = tokens.filter((part) => /^[A-Z]+[-A-Z]*\d+[A-Z0-9-]*$/.test(part));
+    if (standardRefs.length) return standardRefs;
+    return tokens.filter((part) => /^[A-Z][A-Z0-9-]*$/.test(part));
+  }
+
+  function findDuplicates(values) {
+    const counts = new Map();
+    values.forEach((value) => counts.set(value, (counts.get(value) || 0) + 1));
+    return Array.from(counts.entries())
+      .filter(([, count]) => count > 1)
+      .map(([ref, count]) => ({ ref, count }));
   }
 
   function expandDesignatorToken(token) {
