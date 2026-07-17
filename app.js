@@ -83,7 +83,7 @@
     ) {
       return "ref";
     }
-    if (key === "qty" || key.includes("quantity") || key.includes("鏁伴噺")) return "qty";
+    if (key === "qty" || key.includes("quantity") || key.includes("\u6570\u91cf")) return "qty";
     if (
       key === "mpn" ||
       key.includes("mpnorseeedsku") ||
@@ -93,11 +93,11 @@
     ) {
       return "mpn";
     }
-    if (key === "manufacturer" || key.includes("鍒堕€犲晢")) return "manufacturer";
-    if (key.includes("package") || key.includes("footprint") || key.includes("灏佽")) return "package";
-    if (key.includes("valuespecification") || key === "value" || key.includes("瑙勬牸")) return "value";
+    if (key === "manufacturer" || key.includes("\u5236\u9020\u5546")) return "manufacturer";
+    if (key.includes("package") || key.includes("footprint") || key.includes("\u5c01\u88c5")) return "package";
+    if (key.includes("valuespecification") || key === "value" || key.includes("\u89c4\u683c")) return "value";
     if (key === "name" || key === "partname") return "name";
-    if (key === "description" || key.includes("鎻忚堪")) return "description";
+    if (key === "description" || key.includes("\u63cf\u8ff0")) return "description";
     if (key === "datasheet" || key === "link" || key === "partlink" || key.includes("url")) return "datasheet";
     return null;
   }
@@ -237,7 +237,7 @@
     const sharedStrings = await readSharedStrings(getText);
     const sheetPath = await getFirstWorksheetPath(getText);
     const sheetXml = await getText(sheetPath || "xl/worksheets/sheet1.xml");
-    if (!sheetXml) throw new Error("鏈壘鍒板伐浣滆〃鏁版嵁");
+    if (!sheetXml) throw new Error("Worksheet data was not found.");
     return parseWorksheetXml(sheetXml, sharedStrings);
   }
 
@@ -382,7 +382,7 @@
         headerInfo: null,
         records: [],
         issues: [
-          issue("error", "琛ㄥご璇嗗埆澶辫触", "鏈壘鍒?Designator / Quantity / MPN 绛夊叧閿垪銆?, null, "Header"),
+          issue("error", "表头识别失败", "未找到 Designator / Quantity / MPN 等关键列。", null, "Header"),
         ],
         summary: { errors: 1, warnings: 0, infos: 0, rows: 0, refs: 0 },
       };
@@ -395,10 +395,10 @@
         issues.push(
           issue(
             severity,
-            SOFT_TEMPLATE_FIELDS.has(field) ? "缂哄皯寤鸿鍒? : "缂哄皯妯℃澘蹇呭～鍒?,
+            SOFT_TEMPLATE_FIELDS.has(field) ? "Recommended column is missing" : "Required column is missing",
             SOFT_TEMPLATE_FIELDS.has(field)
-              ? `寤鸿鍖呭惈 ${CANONICAL_LABELS[field]}锛屽綋鍓?BOM 鏈瘑鍒埌瀵瑰簲鍒椼€俙
-              : `妯℃澘瑕佹眰鍖呭惈 ${CANONICAL_LABELS[field]}锛屽綋鍓?BOM 鏈瘑鍒埌瀵瑰簲鍒椼€俙,
+              ? `${CANONICAL_LABELS[field]} was not found. This is a warning only and does not block the BOM check.`
+              : `${CANONICAL_LABELS[field]} is required by the template but was not found in the BOM.`,
             headerInfo.index + 1,
             CANONICAL_LABELS[field]
           )
@@ -413,10 +413,10 @@
           issues.push(
             issue(
               severity,
-              SOFT_TEMPLATE_FIELDS.has(field) ? "寤鸿鍐呭涓虹┖" : "蹇呭～鍐呭涓虹┖",
+              SOFT_TEMPLATE_FIELDS.has(field) ? "Recommended value is empty" : "Required value is empty",
               SOFT_TEMPLATE_FIELDS.has(field)
-                ? `${CANONICAL_LABELS[field]} 寤鸿濉啓锛屽綋鍓嶈涓虹┖銆俙
-                : `${CANONICAL_LABELS[field]} 鏄?required 瀛楁锛屽綋鍓嶈涓虹┖銆俙,
+                ? `${CANONICAL_LABELS[field]} is recommended but empty in this row.`
+                : `${CANONICAL_LABELS[field]} is required but empty in this row.`,
               record.rowNumber,
               CANONICAL_LABELS[field]
             )
@@ -427,8 +427,8 @@
         issues.push(
           issue(
             "warning",
-            "CSV 浣嶅彿鏈姞寮曞彿",
-            "褰撳墠琛屽垪鏁拌秴杩囪〃澶达紝宸插皾璇曟妸鍓嶉潰鐨勫鍒楁嫾鍥?Reference Designator锛涘缓璁湪鍘?CSV 涓敤鍙屽紩鍙峰寘浣忎綅鍙峰垪琛ㄣ€?,
+            "CSV designator list is not quoted",
+            "The row has more columns than the header. The checker tried to merge the extra leading columns back into Reference Designator.",
             record.rowNumber,
             "Reference Designator"
           )
@@ -455,7 +455,13 @@
       const uniqueRows = Array.from(new Set(rowsForRef));
       if (uniqueRows.length > 1) {
         issues.push(
-          issue("error", "閲嶅浣嶅彿", `${ref} 鍑虹幇鍦ㄥ琛岋細${uniqueRows.join(", ")}銆俙, uniqueRows[0], "Reference Designator")
+          issue(
+            "error",
+            "Duplicate reference designator",
+            `${ref} appears in multiple rows: ${uniqueRows.join(", ")}.`,
+            uniqueRows[0],
+            "Reference Designator"
+          )
         );
       }
     });
@@ -468,17 +474,17 @@
     const refs = record.refs || [];
     const qty = parseQuantity(record.fields.qty);
     if (record.fields.ref && refs.length === 0) {
-      issues.push(issue("error", "浣嶅彿鏍煎紡寮傚父", "鏈兘浠庝綅鍙峰崟鍏冩牸瑙ｆ瀽鍑烘湁鏁堜綅鍙枫€?, record.rowNumber, "Reference Designator"));
+      issues.push(issue("error", "Invalid reference designator format", "The checker could not parse valid reference designators from this cell.", record.rowNumber, "Reference Designator"));
     }
     if (qty == null && record.fields.qty) {
-      issues.push(issue("error", "鏁伴噺鏍煎紡寮傚父", `鏁伴噺涓嶆槸鏈夋晥鏁存暟锛?{record.fields.qty}`, record.rowNumber, "Quantity"));
+      issues.push(issue("error", "Invalid quantity format", `Quantity is not a valid integer: ${record.fields.qty}`, record.rowNumber, "Quantity"));
     }
     if (qty != null && refs.length && qty !== refs.length) {
       issues.push(
         issue(
           "error",
-          "鏁伴噺涓庝綅鍙蜂釜鏁颁笉涓€鑷?,
-          `瑙ｆ瀽鍒?${refs.length} 涓綅鍙凤紝浣?Quantity 涓?${qty}銆俙,
+          "Quantity does not match reference designator count",
+          `Parsed ${refs.length} reference designators, but Quantity is ${qty}.`,
           record.rowNumber,
           "Quantity"
         )
@@ -493,8 +499,8 @@
       issues.push(
         issue(
           "error",
-          "鍚屼竴鐗╂枡琛屾贩鍏ヤ笉鍚屽櫒浠剁被鍨?,
-          `褰撳墠琛屽寘鍚?${families.map(labelFamily).join("銆?)} 浣嶅彿锛?{refs.join(", ")}銆俙,
+          "Mixed component types in one BOM line",
+          `This row contains ${families.map(labelFamily).join(" and ")} reference designator families: ${refs.join(", ")}.`,
           record.rowNumber,
           "Reference Designator"
         )
@@ -508,8 +514,8 @@
       issues.push(
         issue(
           "error",
-          "MPN 涓庝綅鍙风被鍨嬩笉涓€鑷?,
-          `${record.fields.mpn || "(绌?"} 鐪嬭捣鏉ユ槸${labelFamily(mpnType)}锛屼絾浣嶅彿灞炰簬${labelFamily(dominantFamily)}銆俙,
+          "MPN does not match reference designator type",
+          `${record.fields.mpn || "(empty)"} appears to be ${labelFamily(mpnType)}, but the reference designator family is ${labelFamily(dominantFamily)}.`,
           record.rowNumber,
           "MPN"
         )
@@ -519,8 +525,8 @@
       issues.push(
         issue(
           "warning",
-          "MPN 涓庢弿杩扮被鍨嬩笉涓€鑷?,
-          `MPN 鐪嬭捣鏉ユ槸${labelFamily(mpnType)}锛屾弿杩扮湅璧锋潵鏄?{labelFamily(descriptionType)}銆俙,
+          "MPN and description type mismatch",
+          `MPN appears to be ${labelFamily(mpnType)}, while the description appears to be ${labelFamily(descriptionType)}.`,
           record.rowNumber,
           descriptionFieldLabel
         )
@@ -536,8 +542,8 @@
         issues.push(
           issue(
             "error",
-            "MPN 涓庢弿杩伴樆鍊间笉涓€鑷?,
-            `MPN 鎺ㄦ柇绾?${formatOhms(mpnResistance)}锛屾弿杩颁负 ${formatOhms(descriptionResistance)}銆俙,
+            "MPN and description resistance mismatch",
+            `MPN resistance is ${formatOhms(mpnResistance)}, while description resistance is ${formatOhms(descriptionResistance)}.`,
             record.rowNumber,
             descriptionFieldLabel
           )
@@ -556,7 +562,7 @@
 
   function parseDesignators(value) {
     return cleanText(value)
-      .replace(/[锛屻€侊紱;]/g, ",")
+      .replace(/[\uFF0C\u3001;\uFF1B]/g, ",")
       .replace(/\r?\n/g, ",")
       .split(",")
       .flatMap(expandDesignatorToken)
@@ -597,8 +603,8 @@
   function inferPartType(value) {
     const text = cleanText(value).toUpperCase();
     if (!text) return null;
-    if (/CAPACITOR|\bCAP\b|UF|NF|PF|螠F|GRM|GCM|GRT|CC\d{4}|CL\d{2}|CGA|T491|EEE[-_]?|F95|SVPC|0402B\d{3}|0603B\d{3}|1206Y/.test(text)) return "capacitor";
-    if (/RESISTOR|OHMS?|惟|ERJ[-_]?|CRCW|RK73|RC\d{4}|RT\d{4}|0R\d/.test(text)) return "resistor";
+    if (/CAPACITOR|CAP|UF|NF|PF|µF|GRM|GCM|GRT|CC\d{4}|CL\d{2}|CGA|T491|EEE[-_]?|F95|SVPC|0402B\d{3}|0603B\d{3}|1206Y/.test(text)) return "capacitor";
+    if (/RESISTOR|OHMS?|Ω|Ω|ERJ[-_]?|CRCW|RK73|RC\d{4}|RT\d{4}|0R\d/.test(text)) return "resistor";
     if (/DIODE|LED|TVS|ESD|B540|SS14|TSAL|LTST|APA\d/.test(text)) return "diode";
     if (/MOSFET|TRANSISTOR|N-CHANNEL|P-CHANNEL|2N7002|FDC\d|RK7002|BSS|MMBT/.test(text)) return "transistor";
     if (/CONNECTOR|HEADER|JST|MOLEX|SAMTEC|BM\d{2}B|SM\d{2}B|SMM-|PJ-|SIM\d|MM60/.test(text)) return "connector";
@@ -617,13 +623,13 @@
   }
 
   function isNoMountRow(value) {
-    return /DNP|DNF|NO\s*MOUNT|NOT\s*PLACED|DO\s*NOT\s*ASSEMB|DON'?T\s*ASSEMBLY|涓嶈创|涓嶈|涓嶆姤浠?i.test(value);
+    return /DNP|DNF|NO\s*MOUNT|NOT\s*PLACED|DO\s*NOT\s*ASSEMB|DON'?T\s*ASSEMBLY|\u4E0D\u8D34|\u4E0D\u88C5|\u4E0D\u4E0A\u4EF6/i.test(value);
   }
 
   function extractResistance(value) {
     const text = cleanText(value).toUpperCase();
     if (!text) return null;
-    let match = text.match(/(\d+(?:\.\d+)?)\s*(K|M|MEG)?\s*(?:OHMS?|惟)/);
+    let match = text.match(/(\d+(?:\.\d+)?)\s*(K|M|MEG)?\s*(?:OHMS?|Ω|Ω)/);
     if (match) return scaleResistance(Number(match[1]), match[2]);
     match = text.match(/(\d+)R(\d*)/);
     if (match) return Number(`${match[1]}.${match[2] || "0"}`);
@@ -651,9 +657,9 @@
   }
 
   function formatOhms(value) {
-    if (value >= 1000000) return `${trimNumber(value / 1000000)} M惟`;
-    if (value >= 1000) return `${trimNumber(value / 1000)} k惟`;
-    return `${trimNumber(value)} 惟`;
+    if (value >= 1000000) return `${trimNumber(value / 1000000)} MOhm`;
+    if (value >= 1000) return `${trimNumber(value / 1000)} kOhm`;
+    return `${trimNumber(value)} Ohm`;
   }
 
   function trimNumber(value) {
@@ -663,18 +669,18 @@
   function labelFamily(family) {
     return (
       {
-        capacitor: "鐢靛",
-        resistor: "鐢甸樆",
-        diode: "浜屾瀬绠?LED",
-        transistor: "涓夋瀬绠?MOS",
+        capacitor: "capacitor",
+        resistor: "resistor",
+        diode: "diode/LED",
+        transistor: "transistor/MOSFET",
         ic: "IC",
-        connector: "杩炴帴鍣?,
-        inductor: "鐢垫劅/纾佺彔",
-        fuse: "淇濋櫓涓?,
-        relay: "缁х數鍣?,
-        switch: "寮€鍏?,
-        crystal: "鏅舵尟",
-        mechanical: "缁撴瀯/娴嬭瘯鐐?,
+        connector: "connector",
+        inductor: "inductor/ferrite bead",
+        fuse: "fuse",
+        relay: "relay",
+        switch: "switch",
+        crystal: "crystal",
+        mechanical: "mechanical part",
       }[family] || family
     );
   }
@@ -767,14 +773,14 @@
 
   function renderResult(fileName, result) {
     $(selectors.fileTitle).textContent = fileName;
-    $(selectors.fileSubtitle).textContent = result.fileOk ? "鏈彂鐜伴樆鏂€ч敊璇紝鍙互缁х画浜哄伐澶嶆牳銆? : "鍙戠幇闇€瑕佷慨姝ｇ殑闂銆?;
+    $(selectors.fileSubtitle).textContent = result.fileOk ? "No blocking errors found. Please continue manual review." : "Issues requiring correction were found.";
     $(selectors.errorCount).textContent = result.summary.errors;
     $(selectors.warningCount).textContent = result.summary.warnings;
     $(selectors.rowCount).textContent = result.summary.rows;
     $(selectors.refCount).textContent = result.summary.refs;
     $(selectors.headerStatus).textContent = result.headerInfo
-      ? `琛ㄥご绗?${result.headerInfo.index + 1} 琛岋紝璇嗗埆 ${Object.keys(result.headerInfo.map).length} 涓瓧娈礰
-      : "鏈瘑鍒〃澶?;
+      ? `Header row ${result.headerInfo.index + 1}; matched ${Object.keys(result.headerInfo.map).length} columns`
+      : "Header not detected";
     const exportButton = $(selectors.exportReportButton);
     if (exportButton) exportButton.disabled = !result.issues.length;
     renderIssues();
@@ -788,7 +794,7 @@
     const filter = $(selectors.severityFilter).value;
     const issues = result.issues.filter((item) => filter === "all" || item.severity === filter);
     if (!issues.length) {
-      container.innerHTML = `<div class="empty-state"><strong>褰撳墠绛涢€変笅娌℃湁闂</strong><span>鍙互鍒囨崲绛涢€夋潯浠舵煡鐪嬪畬鏁寸粨鏋溿€?/span></div>`;
+      container.innerHTML = `<div class="empty-state"><strong>No issues under the current filter</strong><span>Warnings and errors will appear here after a BOM is checked.</span></div>`;
       return;
     }
     container.innerHTML = issues
@@ -799,7 +805,7 @@
             <span class="issue-title">${escapeHtml(item.title)}</span>
             <span class="badge ${item.severity}">${severityLabel(item.severity)}</span>
           </div>
-          <div class="issue-meta">${item.rowNumber ? `绗?${item.rowNumber} 琛宍 : "鍏ㄨ〃"} 路 ${escapeHtml(item.field || "")}</div>
+          <div class="issue-meta">${item.rowNumber ? `Row ${item.rowNumber}` : "Header"} / ${escapeHtml(item.field || "")}</div>
           <div class="issue-detail">${escapeHtml(item.detail)}</div>
         </article>`
       )
@@ -930,54 +936,10 @@
   }
 
   function issueToEnglish(item) {
-    const title = item.title || "";
-    const field = item.field || "the field";
-    if (title.includes("琛ㄥご璇嗗埆")) {
-      return { title: "Header detection failed", detail: "The checker could not find key columns such as Designator, Quantity, or MPN." };
-    }
-    if (title.includes("缂哄皯寤鸿鍒?)) {
-      return { title: "Recommended column is missing", detail: `${field} was not found. This is a warning only and does not block the BOM check.` };
-    }
-    if (title.includes("缂哄皯妯℃澘蹇呭～鍒?)) {
-      return { title: "Required column is missing", detail: `${field} is required by the template but was not found in the BOM.` };
-    }
-    if (title.includes("寤鸿鍐呭涓虹┖")) {
-      return { title: "Recommended value is empty", detail: `${field} is recommended but empty in this row.` };
-    }
-    if (title.includes("蹇呭～鍐呭涓虹┖")) {
-      return { title: "Required value is empty", detail: `${field} is required but empty in this row.` };
-    }
-    if (title.includes("CSV")) {
-      return { title: "CSV designator list is not quoted", detail: "The row has more columns than the header. The checker tried to merge the extra leading columns back into Reference Designator." };
-    }
-    if (title.includes("浣嶅彿鏍煎紡")) {
-      return { title: "Invalid reference designator format", detail: "The checker could not parse valid reference designators from this cell." };
-    }
-    if (title.includes("鏁伴噺鏍煎紡")) {
-      return { title: "Invalid quantity format", detail: "The quantity value is not a valid integer." };
-    }
-    if (title.includes("鏁伴噺涓庝綅鍙?)) {
-      return { title: "Quantity does not match reference designator count", detail: "The number of parsed reference designators is different from the Quantity value." };
-    }
-    if (title.includes("娣峰叆涓嶅悓鍣ㄤ欢绫诲瀷")) {
-      return { title: "Mixed component types in one BOM line", detail: "The same BOM line contains reference designators from different component families, such as capacitors and resistors." };
-    }
-    if (title.includes("閲嶅浣嶅彿")) {
-      return { title: "Duplicate reference designator", detail: "The same reference designator appears in more than one BOM line." };
-    }
-    if (title.includes("MPN") && title.includes("浣嶅彿")) {
-      return { title: "MPN does not match reference designator type", detail: "The MPN appears to describe a different component family than the reference designator prefix." };
-    }
-    if (title.includes("MPN") && title.includes("鎻忚堪") && title.includes("闃诲€?)) {
-      return { title: "MPN and description resistance mismatch", detail: "The resistance inferred from the MPN does not match the resistance stated in the description." };
-    }
-    if (title.includes("MPN") && title.includes("鎻忚堪")) {
-      return { title: "MPN and description type mismatch", detail: "The MPN and description appear to describe different component families." };
-    }
-    if (title.includes("鏂囦欢瑙ｆ瀽")) {
-      return { title: "File parsing failed", detail: "The file could not be parsed by the checker." };
-    }
-    return { title: "BOM issue", detail: "Please review this row and field in the source BOM." };
+    return {
+      title: item.title || "BOM issue",
+      detail: item.detail || "Please review this row and field in the source BOM.",
+    };
   }
 
   function safeFileStem(fileName) {
@@ -994,11 +956,11 @@
   }
 
   function severityLabel(severity) {
-    return { error: "閿欒", warning: "璀﹀憡", info: "鎻愮ず" }[severity] || severity;
+    return { error: "Error", warning: "Warning", info: "Info" }[severity] || severity;
   }
 
   function setBusy(isBusy) {
-    $(selectors.pickButton).textContent = isBusy ? "妫€鏌ヤ腑..." : "閫夋嫨鏂囦欢";
+    $(selectors.pickButton).textContent = isBusy ? "Checking..." : "Select file";
     $(selectors.pickButton).disabled = isBusy;
   }
 
@@ -1011,7 +973,11 @@
   function bindUi() {
     const input = $(selectors.fileInput);
     const dropZone = $(selectors.dropZone);
-    $(selectors.pickButton).addEventListener("click", () => input.click());
+    $(selectors.pickButton).addEventListener("click", (event) => {
+      event.stopPropagation();
+      input.click();
+    });
+    dropZone.addEventListener("click", () => input.click());
     input.addEventListener("change", () => {
       const file = input.files && input.files[0];
       if (file) runFile(file);
@@ -1096,4 +1062,3 @@
   if (typeof module !== "undefined") module.exports = api;
   if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded", init);
 })(typeof window !== "undefined" ? window : globalThis);
-
